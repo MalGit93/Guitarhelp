@@ -388,6 +388,13 @@
             font-weight: 700;
         }
 
+        .diatonic-desc {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin: 4px 0 10px 0;
+            line-height: 1.4;
+        }
+
         .diatonic-structure {
             color: var(--text-muted);
             font-size: 0.85rem;
@@ -416,6 +423,13 @@
         }
         .legend span { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #ccc; }
         .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+        .orientation-note {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 6px;
+            text-align: center;
+        }
 
     </style>
 </head>
@@ -456,11 +470,11 @@
     <div class="control-group">
         <label>Tuning</label>
         <select id="tuningSelect">
-            <option value="std">Standard (E A D G B E)</option>
-            <option value="dropd">Drop D (D A D G B E)</option>
-            <option value="dadgad">DADGAD</option>
-            <option value="eb">Eb Standard</option>
-            <option value="dstd">D Standard (Full Step Down)</option>
+            <option value="std">Standard (high→low: E B G D A E)</option>
+            <option value="dropd">Drop D (high→low: E B G D A D)</option>
+            <option value="dadgad">DADGAD (high→low)</option>
+            <option value="eb">Eb Standard (high→low: Eb Bb Gb Db Ab Eb)</option>
+            <option value="dstd">D Standard (high→low: D A F C G D)</option>
         </select>
     </div>
 
@@ -518,19 +532,20 @@
     <button id="scrollRightBtn" class="scroll-btn">▶</button>
 </div>
 
-<div class="info-bar">
-    <div id="theoryOutput">Loading...</div>
-    <div id="diatonicPanel" class="diatonic-panel" aria-live="polite"></div>
-    <div class="legend">
-        <span><div class="dot" style="background:var(--c-root); border:1px solid white"></div> Root (1)</span>
-        <span><div class="dot" style="background:var(--c-3rd); color:black"></div> 3rd</span>
-        <span><div class="dot" style="background:var(--c-5th); color:black"></div> 5th</span>
-        <span><div class="dot" style="background:var(--c-7th)"></div> 7th</span>
-        <span><div class="dot" style="background:var(--c-other)"></div> Ext</span>
-    </div>
-    <div class="audio-controls">
-        <button id="playArpeggioBtn" class="play-btn">▶ Play Scale/Arpeggio</button>
-    </div>
+    <div class="info-bar">
+        <div id="theoryOutput">Loading...</div>
+        <div id="diatonicPanel" class="diatonic-panel" aria-live="polite"></div>
+        <div class="legend">
+            <span><div class="dot" style="background:var(--c-root); border:1px solid white"></div> Root (1)</span>
+            <span><div class="dot" style="background:var(--c-3rd); color:black"></div> 3rd</span>
+            <span><div class="dot" style="background:var(--c-5th); color:black"></div> 5th (perfect)</span>
+            <span><div class="dot" style="background:var(--c-7th)"></div> 7th</span>
+            <span><div class="dot" style="background:var(--c-other)"></div> Ext/Altered</span>
+        </div>
+        <div class="orientation-note">Diagram shows strings high→low, so the 1st string (high E) is at the top. Tuning labels list strings in that same order.</div>
+        <div class="audio-controls">
+            <button id="playArpeggioBtn" class="play-btn">▶ Play Scale/Arpeggio</button>
+        </div>
 </div>
 
 <script>
@@ -873,7 +888,10 @@
         }
 
         diatonicPanel.style.display = 'block';
-        diatonicPanel.innerHTML = '<div class="diatonic-header">Diatonic triads (click to view chord)</div>';
+        diatonicPanel.innerHTML = `
+            <div class="diatonic-header">Diatonic triads (click to view chord)</div>
+            <div class="diatonic-desc">Each chord stacks the 1st, 3rd, and 5th notes of the scale on every scale degree (e.g., ii comes from the 2nd note).</div>
+        `;
 
         const list = document.createElement('div');
         list.className = 'diatonic-list';
@@ -995,7 +1013,7 @@
     function getIntervalClass(i) {
         if (i === 0) return 'int-R';
         if ([3,4].includes(i)) return 'int-3';
-        if ([6,7,8].includes(i)) return 'int-5';
+        if (i === 7) return 'int-5';
         if ([10,11].includes(i)) return 'int-7';
         return 'int-other';
     }
