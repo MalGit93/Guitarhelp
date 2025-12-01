@@ -342,6 +342,58 @@
             border-top: 1px solid #333;
         }
 
+        .diatonic-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid #2f2f32;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            text-align: left;
+            display: none;
+        }
+
+        .diatonic-header {
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .diatonic-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 8px;
+        }
+
+        .diatonic-item {
+            background: #2a2a30;
+            border: 1px solid #3a3a42;
+            border-radius: 6px;
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: border 0.15s ease, transform 0.1s ease;
+        }
+
+        .diatonic-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .diatonic-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+        }
+
+        .diatonic-structure {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
         .play-btn {
             background: var(--accent);
             color: white;
@@ -468,6 +520,7 @@
 
 <div class="info-bar">
     <div id="theoryOutput">Loading...</div>
+    <div id="diatonicPanel" class="diatonic-panel" aria-live="polite"></div>
     <div class="legend">
         <span><div class="dot" style="background:var(--c-root); border:1px solid white"></div> Root (1)</span>
         <span><div class="dot" style="background:var(--c-3rd); color:black"></div> 3rd</span>
@@ -547,6 +600,7 @@
     const fretboardEl = document.getElementById('fretboard');
     const labelsEl = document.getElementById('stringLabels');
     const theoryOut = document.getElementById('theoryOutput');
+    const diatonicPanel = document.getElementById('diatonicPanel');
     const viewportWrapper = document.querySelector('.viewport-wrapper');
     const dynamicSelect = document.getElementById('dynamicSelect');
     const filterSelect = document.getElementById('filterSelect');
@@ -795,11 +849,137 @@
         const detail = state.mode === 'scale' && state.filter !== 'all' ? ` (${state.filter}s)` : '';
         
         let struct = intervals.map(i => INTERVAL_MAP[i] || 'Ext').join(' - ');
-        
+
         theoryOut.innerHTML = `
             <strong style="font-size:1.1rem; color:white">${name}${detail}</strong><br>
             <span style="color:#888">${struct}</span>
         `;
+
+        renderDiatonicPanel(intervals);
+    }
+
+    function renderDiatonicPanel(intervals) {
+        if (state.mode !== 'scale' || intervals.length < 7) {
+            diatonicPanel.style.display = 'none';
+            diatonicPanel.innerHTML = '';
+            return;
+        }
+
+        const chords = buildDiatonicChords(intervals);
+        if (!chords.length) {
+            diatonicPanel.style.display = 'none';
+            diatonicPanel.innerHTML = '';
+            return;
+        }
+
+        diatonicPanel.style.display = 'block';
+        diatonicPanel.innerHTML = '<div class="diatonic-header">Diatonic triads (click to view chord)</div>';
+
+        const list = document.createElement('div');
+        list.className = 'diatonic-list';
+
+        chords.forEach((chord) => {
+            const item = document.createElement('div');
+            item.className = 'diatonic-item';
+            item.setAttribute('role', 'button');
+            item.setAttribute('tabindex', '0');
+
+            const chordLabel = `${getNoteLabel(chord.rootNote)}${formatQualitySuffix(chord.quality)}`;
+
+            item.innerHTML = `
+                <div class="diatonic-line">
+                    <span>${chord.numeral}</span>
+                    <span>${chordLabel}</span>
+                </div>
+                <div class="diatonic-structure">(${chord.structure.map(getIntervalLabel).join(' ')})</div>
+            `;
+
+            const activate = () => activateDiatonicChord(chord);
+            item.addEventListener('click', activate);
+            item.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    activate();
+                }
+            });
+
+            list.appendChild(item);
+        });
+
+        diatonicPanel.appendChild(list);
+    }
+
+    function buildDiatonicChords(intervals) {
+        const numerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+        const chords = [];
+        const len = intervals.length;
+
+        if (len < 3) return chords;
+
+        for (let i = 0; i < Math.min(len, 7); i++) {
+            const rootInterval = intervals[i];
+            const thirdInterval = intervals[(i + 2) % len] + ((i + 2) >= len ? 12 : 0) - rootInterval;
+            const fifthInterval = intervals[(i + 4) % len] + ((i + 4) >= len ? 12 : 0) - rootInterval;
+
+            const quality = getTriadQuality(thirdInterval, fifthInterval);
+
+            chords.push({
+                numeral: formatNumeral(numerals[i % numerals.length], quality),
+                rootNote: (state.root + rootInterval) % 12,
+                structure: [0, thirdInterval, fifthInterval],
+                quality,
+                chordType: getChordTypeFromQuality(quality)
+            });
+        }
+
+        return chords;
+    }
+
+    function getTriadQuality(third, fifth) {
+        if (third === 4 && fifth === 7) return 'maj';
+        if (third === 3 && fifth === 7) return 'min';
+        if (third === 3 && fifth === 6) return 'dim';
+        if (third === 4 && fifth === 8) return 'aug';
+        return 'other';
+    }
+
+    function formatNumeral(base, quality) {
+        if (quality === 'maj') return base;
+        if (quality === 'min') return base.toLowerCase();
+        if (quality === 'dim') return base.toLowerCase() + '°';
+        if (quality === 'aug') return base + '+';
+        return base;
+    }
+
+    function formatQualitySuffix(quality) {
+        if (quality === 'maj') return 'maj';
+        if (quality === 'min') return 'm';
+        if (quality === 'dim') return 'dim';
+        if (quality === 'aug') return 'aug';
+        return '';
+    }
+
+    function getChordTypeFromQuality(quality) {
+        if (quality === 'maj') return 'Major Triad';
+        if (quality === 'min') return 'Minor Triad';
+        if (quality === 'dim') return 'Diminished';
+        if (quality === 'aug') return 'Augmented';
+        return 'Major Triad';
+    }
+
+    function activateDiatonicChord(chord) {
+        state.mode = 'chord';
+        document.getElementById('modeSelect').value = 'chord';
+
+        state.root = chord.rootNote;
+        document.getElementById('rootSelect').value = state.root;
+
+        state.dynamicSelection = CHORDS[chord.chordType] ? chord.chordType : 'Major Triad';
+        updateDynamicSelectOptions();
+        dynamicSelect.value = state.dynamicSelection;
+
+        updateFilterOptions();
+        renderBoard();
     }
 
     // --- HELPERS ---
