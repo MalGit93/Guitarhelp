@@ -215,7 +215,7 @@
         }
         
         .fretboard.lefty { transform: scaleX(-1); }
-        .fretboard.lefty .note-text, .fretboard.lefty .fret-number { transform: scaleX(-1); }
+        .fretboard.lefty .note, .fretboard.lefty .fret-number { transform: scaleX(-1); }
 
         .string {
             height: 40px;
@@ -415,7 +415,7 @@
     <div class="control-group">
         <label>Focus Zone</label>
         <select id="zoneSelect">
-            <option value="0-24">Full Neck (0-18)</option>
+            <option value="0-18">Full Neck (0-18)</option>
             <option value="0-5">Open (0-5)</option>
             <option value="5-9">Middle (5-9)</option>
             <option value="8-13">High (8-13)</option>
@@ -536,7 +536,7 @@
         dynamicSelection: 'Major (Ionian)',
         tuning: 'std',
         filter: 'all', 
-        zone: '0-24',
+        zone: '0-18',
         display: 'notes', // notes vs intervals
         hand: 'right',
         spelling: 'sharp',
@@ -705,7 +705,7 @@
             const labelDiv = document.createElement('div');
             labelDiv.className = 'string-name';
             const noteName = getNoteLabel(openNote);
-            labelDiv.innerText = state.labeling === 'note' ? noteName : (state.hand==='right' ? stringNum : 7-stringNum); 
+            labelDiv.innerText = state.labeling === 'note' ? noteName : stringNum;
             // Correct string numbering visual: Top is string 1 (High E) in array index 0?
             // Wait, TUNING array is E(4) B(3) ... so index 0 is high E (string 1).
             // Visual text: Note or Number.
@@ -891,7 +891,11 @@
         }
         
         // Easier approach: Get all .note.visible, sort them by string (desc) then fret (asc)
-        const notes = Array.from(document.querySelectorAll('.note.visible'));
+        const notes = Array.from(document.querySelectorAll('.note.visible'))
+            .filter(n => {
+                const f = parseInt(n.dataset.fret);
+                return f >= min && f <= max;
+            });
         
         // Sort: String 5 (Low E) is highest index but lowest pitch base. 
         // We want 5, then 4...
