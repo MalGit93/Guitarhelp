@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guitar Theory Pro - v5</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            
+            --fretboard-wood: #2c241b;
+            --fret-wire: #d4d4d8;
+            --string-metal: #a1a1aa;
+            
+            /* Interval Colors */
+            --c-root: #ef4444;    /* Red */
+            --c-3rd: #eab308;     /* Yellow/3rd */
+            --c-5th: #22c55e;     /* Green/5th */
+            --c-7th: #a855f7;     /* Purple/7th */
+            --c-other: #3b82f6;   /* Blue/Extensions */
+            --accent: #3b82f6;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- Header --- */
+        header {
+            width: 100%;
+            padding: 15px 0;
+            text-align: center;
+            background: #18181b;
+            border-bottom: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        h1 { margin: 0; font-weight: 700; letter-spacing: 0.5px; font-size: 1.25rem; }
+        .subtitle { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* Toggle Button for Controls (Mobile) */
+        #toggleControlsBtn {
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #toggleControlsBtn:hover { background: #444; }
+
+        /* --- Controls --- */
+        .controls-container {
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 0 0 12px 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            max-width: 1200px;
+            width: 95%;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s;
+            overflow: hidden;
+        }
+
+        .controls-container.collapsed {
+            max-height: 0;
+            padding: 0 20px; /* Keep horizontal padding to prevent width jump, vertical 0 */
+            opacity: 0;
+            margin-bottom: 0;
+            pointer-events: none;
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 6px; }
+        
+        label { 
+            font-size: 0.7rem; 
+            text-transform: uppercase; 
+            color: var(--text-muted); 
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        select, button.action-btn {
+            background: #2d2d30;
+            color: white;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+        
+        /* Toggle Groups */
+        .toggle-group {
+            display: flex;
+            background: #2d2d30;
+            border-radius: 6px;
+            padding: 2px;
+            border: 1px solid #444;
+        }
+
+        .toggle-group button {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .toggle-group button.active {
+            background-color: var(--accent);
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        /* --- Viewport & Fretboard --- */
+        .viewport-wrapper {
+            width: 100%;
+            overflow-x: auto; 
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 10px 5px 40px 5px;
+            scroll-snap-type: x mandatory; 
+        }
+
+        .scroll-btn {
+            background-color: var(--panel-bg);
+            color: var(--text-main);
+            border: 1px solid #444;
+            padding: 0;
+            width: 40px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 8px;
+            margin: 0 5px;
+            flex-shrink: 0;
+            height: 280px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .scroll-btn:active { transform: scale(0.95); }
+
+        .fretboard-outer {
+            display: flex;
+            align-items: flex-start;
+            position: relative;
+            flex-shrink: 0;
+            scroll-snap-align: start; 
+        }
+
+        /* String Labels */
+        .string-labels {
+            display: flex;
+            flex-direction: column;
+            padding-top: 6px; 
+            margin-right: 8px;
+        }
+        .string-name {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            width: 45px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Board */
+        .fretboard {
+            background: var(--fretboard-wood);
+            border: 6px solid #1a1510;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            user-select: none;
+            border-radius: 4px;
+        }
+        
+        .fretboard.lefty { transform: scaleX(-1); }
+        .fretboard.lefty .note-text, .fretboard.lefty .fret-number { transform: scaleX(-1); }
+
+        .string {
+            height: 40px;
+            display: flex;
+            position: relative;
+        }
+
+        .string::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 0; right: 0;
+            height: var(--thickness, 1px);
+            background: linear-gradient(to bottom, #d4d4d8, #a1a1aa);
+            z-index: 1;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .fret {
+            width: 65px;
+            height: 100%;
+            border-right: 2px solid var(--fret-wire);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2; 
+            flex-shrink: 0; 
+        }
+
+        .fret:first-child {
+            width: 45px; 
+            background: #111; 
+            border-right: 6px solid #444;
+        }
+
+        /* Number Row */
+        .number-row {
+            display: flex;
+            height: 30px;
+            background: #1a1510; 
+            border-top: 2px solid #000;
+        }
+        
+        .fret-number {
+            width: 65px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #555;
+            font-size: 0.7rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .fret-number.nut { width: 45px; }
+        .fret-number.marker { color: #eab308; }
+
+        /* Note Circle */
+        .note {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #333;
+            color: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            z-index: 10;
+            opacity: 0; 
+            transform: scale(0.4);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .note.visible { opacity: 1; transform: scale(1); color: white; }
+        
+        /* Note Colors */
+        .note.int-R { background: var(--c-root); border: 2px solid white; z-index: 12; width:38px; height:38px;}
+        .note.int-3 { background: var(--c-3rd); color: #111; } /* Dark text for yellow */
+        .note.int-5 { background: var(--c-5th); color: #111; }
+        .note.int-7 { background: var(--c-7th); }
+        .note.int-other { background: var(--c-other); }
+
+        .fret.dimmed .note { opacity: 0.05; pointer-events: none; }
+
+        /* Animation */
+        .note.playing { animation: pulse 0.4s ease-out; filter: brightness(1.3); }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); transform: scale(1.1); }
+            100% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); transform: scale(1); }
+        }
+
+        /* Inlays */
+        .inlay {
+            position: absolute;
+            width: 14px; height: 14px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 50%;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0; pointer-events: none;
+        }
+        .double-inlay { top: 25%; }
+        .double-inlay-2 { top: 75%; transform: translate(-50%, -50%); position: absolute; left: 50%; width: 14px; height: 14px; background: rgba(255,255,255,0.15); border-radius: 50%;}
+
+        /* --- Footer --- */
+        .info-bar {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.9rem;
+            width: 95%;
+            max-width: 1200px;
+            margin-bottom: 40px;
+        }
+
+        .audio-controls {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+        }
+
+        .play-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+        .play-btn:hover { background: #2563eb; }
+        .play-btn:disabled { background: #555; cursor: not-allowed; }
+
+        .legend {
+            display: flex; justify-content: center; gap: 15px; margin-top: 10px; flex-wrap: wrap;
+        }
+        .legend span { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #ccc; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>GUITAR THEORY PRO</h1>
+    <div class="subtitle">Interactive Scales, Chords & Modes</div>
+    <button id="toggleControlsBtn">⚙️ Settings</button>
+</header>
+
+<div class="controls-container" id="controlsPanel">
+    <!-- Row 1 -->
+    <div class="control-group">
+        <label>Key Center</label>
+        <select id="rootSelect"></select>
+    </div>
+
+    <div class="control-group">
+        <label>Mode</label>
+        <select id="modeSelect">
+            <option value="scale">Scale / Mode</option>
+            <option value="chord">Chord / Arpeggio</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label id="dynamicLabel">Scale Type</label>
+        <select id="dynamicSelect"></select>
+    </div>
+
+    <div class="control-group">
+        <label>Filter Tones</label>
+        <select id="filterSelect"></select>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="control-group">
+        <label>Tuning</label>
+        <select id="tuningSelect">
+            <option value="std">Standard (E A D G B E)</option>
+            <option value="dropd">Drop D (D A D G B E)</option>
+            <option value="dadgad">DADGAD</option>
+            <option value="eb">Eb Standard</option>
+            <option value="dstd">D Standard (Full Step Down)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Focus Zone</label>
+        <select id="zoneSelect">
+            <option value="0-24">Full Neck (0-18)</option>
+            <option value="0-5">Open (0-5)</option>
+            <option value="5-9">Middle (5-9)</option>
+            <option value="8-13">High (8-13)</option>
+            <option value="12-17">Upper (12-17)</option>
+        </select>
+    </div>
+
+    <!-- Toggle Groups -->
+    <div class="control-group">
+        <label>Note Display</label>
+        <div class="toggle-group">
+            <button id="displayNote" class="active">Notes</button>
+            <button id="displayInterval">Intervals</button>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label>Spelling</label>
+        <div class="toggle-group">
+            <button id="spellingSharp" class="active">#</button>
+            <button id="spellingFlat">b</button>
+        </div>
+    </div>
+    
+    <div class="control-group">
+        <label>Strings</label>
+        <div class="toggle-group">
+            <button id="labelNote" class="active">Note</button>
+            <button id="labelNumber">Num</button>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label>Orientation</label>
+        <div class="toggle-group">
+            <button id="handRight" class="active">Righty</button>
+            <button id="handLeft">Lefty</button>
+        </div>
+    </div>
+</div>
+
+<div class="viewport-wrapper">
+    <button id="scrollLeftBtn" class="scroll-btn">◀</button> 
+    <div class="fretboard-outer">
+        <div id="stringLabels" class="string-labels"></div>
+        <div id="fretboard" class="fretboard"></div>
+    </div>
+    <button id="scrollRightBtn" class="scroll-btn">▶</button>
+</div>
+
+<div class="info-bar">
+    <div id="theoryOutput">Loading...</div>
+    <div class="legend">
+        <span><div class="dot" style="background:var(--c-root); border:1px solid white"></div> Root (1)</span>
+        <span><div class="dot" style="background:var(--c-3rd); color:black"></div> 3rd</span>
+        <span><div class="dot" style="background:var(--c-5th); color:black"></div> 5th</span>
+        <span><div class="dot" style="background:var(--c-7th)"></div> 7th</span>
+        <span><div class="dot" style="background:var(--c-other)"></div> Ext</span>
+    </div>
+    <div class="audio-controls">
+        <button id="playArpeggioBtn" class="play-btn">▶ Play Scale/Arpeggio</button>
+    </div>
+</div>
+
+<script>
+    // --- CONSTANTS ---
+    const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const FLAT_NOTES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+    
+    // Extended Interval Mapping
+    const INTERVAL_MAP = {
+        0: 'R', 1: 'b2', 2: '2', 3: 'b3', 4: '3', 5: '4', 6: 'b5', 7: '5', 8: 'b6', 9: '6', 10: 'b7', 11: '7'
+    };
+
+    const SCALES = {
+        'Major (Ionian)': [0, 2, 4, 5, 7, 9, 11],
+        'Minor (Aeolian)': [0, 2, 3, 5, 7, 8, 10],
+        'Dorian': [0, 2, 3, 5, 7, 9, 10],
+        'Phrygian': [0, 1, 3, 5, 7, 8, 10],
+        'Lydian': [0, 2, 4, 6, 7, 9, 11],
+        'Mixolydian': [0, 2, 4, 5, 7, 9, 10],
+        'Locrian': [0, 1, 3, 5, 6, 8, 10],
+        'Pentatonic Minor': [0, 3, 5, 7, 10],
+        'Pentatonic Major': [0, 2, 4, 7, 9],
+        'Blues': [0, 3, 5, 6, 7, 10],
+        'Harmonic Minor': [0, 2, 3, 5, 7, 8, 11],
+        'Melodic Minor': [0, 2, 3, 5, 7, 9, 11]
+    };
+
+    const CHORDS = {
+        'Major Triad': [0, 4, 7],
+        'Minor Triad': [0, 3, 7],
+        'Augmented': [0, 4, 8],
+        'Diminished': [0, 3, 6],
+        'Maj7': [0, 4, 7, 11],
+        'Dom7': [0, 4, 7, 10],
+        'Min7': [0, 3, 7, 10],
+        'm7b5': [0, 3, 6, 10],
+        'dim7': [0, 3, 6, 9],
+        'sus2': [0, 2, 7],
+        'sus4': [0, 5, 7],
+        'Add9': [0, 4, 7, 2],
+        'm9': [0, 3, 7, 10, 2]
+    };
+
+    const TUNINGS = {
+        'std': [4, 11, 7, 2, 9, 4], // E B G D A E
+        'dropd': [4, 11, 7, 2, 9, 2], 
+        'dadgad': [2, 9, 7, 2, 9, 2], 
+        'eb': [3, 10, 6, 1, 8, 3],
+        'dstd': [2, 9, 5, 0, 7, 2]
+    };
+
+    // --- STATE ---
+    let state = {
+        root: 9, // A
+        mode: 'scale', 
+        dynamicSelection: 'Major (Ionian)',
+        tuning: 'std',
+        filter: 'all', 
+        zone: '0-24',
+        display: 'notes', // notes vs intervals
+        hand: 'right',
+        spelling: 'sharp',
+        labeling: 'note'
+    };
+
+    // --- ELEMENTS ---
+    const fretboardEl = document.getElementById('fretboard');
+    const labelsEl = document.getElementById('stringLabels');
+    const theoryOut = document.getElementById('theoryOutput');
+    const viewportWrapper = document.querySelector('.viewport-wrapper');
+    const dynamicSelect = document.getElementById('dynamicSelect');
+    const filterSelect = document.getElementById('filterSelect');
+    const controlsPanel = document.getElementById('controlsPanel');
+
+    let audioCtx = null;
+    let playingSequence = false;
+
+    // --- INIT ---
+    function init() {
+        populateRootSelect();
+        updateDynamicSelectOptions(); // Populate Scales first
+        setupListeners();
+        renderBoard();
+        
+        // Mobile settings toggle
+        document.getElementById('toggleControlsBtn').addEventListener('click', () => {
+            controlsPanel.classList.toggle('collapsed');
+        });
+    }
+
+    function populateRootSelect() {
+        const rootSel = document.getElementById('rootSelect');
+        NOTES.forEach((n, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.text = n;
+            rootSel.appendChild(opt);
+        });
+        rootSel.value = state.root;
+    }
+
+    function setupListeners() {
+        // Dropdowns
+        const map = {
+            'rootSelect': 'root', 'tuningSelect': 'tuning', 'zoneSelect': 'zone'
+        };
+        
+        for (let id in map) {
+            document.getElementById(id).addEventListener('change', (e) => {
+                state[map[id]] = (id === 'rootSelect') ? parseInt(e.target.value) : e.target.value;
+                renderBoard();
+            });
+        }
+
+        document.getElementById('modeSelect').addEventListener('change', (e) => {
+            state.mode = e.target.value;
+            updateDynamicSelectOptions();
+            renderBoard();
+        });
+
+        dynamicSelect.addEventListener('change', (e) => {
+            state.dynamicSelection = e.target.value;
+            updateFilterOptions();
+            renderBoard();
+        });
+
+        filterSelect.addEventListener('change', (e) => {
+            state.filter = e.target.value;
+            renderBoard();
+        });
+
+        // Toggles
+        setupToggle('displayNote', 'displayInterval', 'display', 'notes', 'intervals');
+        setupToggle('spellingSharp', 'spellingFlat', 'spelling', 'sharp', 'flat');
+        setupToggle('labelNote', 'labelNumber', 'labeling', 'note', 'number');
+        setupToggle('handRight', 'handLeft', 'hand', 'right', 'left');
+
+        // Scroll
+        document.getElementById('scrollLeftBtn').addEventListener('click', () => {
+            viewportWrapper.scrollBy({ left: -200, behavior: 'smooth' });
+        });
+        document.getElementById('scrollRightBtn').addEventListener('click', () => {
+            viewportWrapper.scrollBy({ left: 200, behavior: 'smooth' });
+        });
+
+        // Audio
+        document.getElementById('playArpeggioBtn').addEventListener('click', playVisibleArpeggio);
+    }
+
+    function setupToggle(idA, idB, stateKey, valA, valB) {
+        document.getElementById(idA).addEventListener('click', () => {
+            state[stateKey] = valA;
+            updateToggleUI(idA, idB, true);
+            renderBoard();
+        });
+        document.getElementById(idB).addEventListener('click', () => {
+            state[stateKey] = valB;
+            updateToggleUI(idA, idB, false);
+            renderBoard();
+        });
+    }
+
+    function updateToggleUI(idA, idB, isA) {
+        document.getElementById(idA).classList.toggle('active', isA);
+        document.getElementById(idB).classList.toggle('active', !isA);
+    }
+
+    function updateDynamicSelectOptions() {
+        dynamicSelect.innerHTML = '';
+        const source = state.mode === 'scale' ? SCALES : CHORDS;
+        for (let key in source) {
+            dynamicSelect.add(new Option(key, key));
+        }
+        // Restore previous if possible, else default
+        if (source[state.dynamicSelection]) {
+            dynamicSelect.value = state.dynamicSelection;
+        } else {
+            state.dynamicSelection = dynamicSelect.options[0].value;
+        }
+        
+        document.getElementById('dynamicLabel').innerText = state.mode === 'scale' ? 'Scale / Mode' : 'Chord Type';
+        updateFilterOptions();
+    }
+
+    function updateFilterOptions() {
+        filterSelect.innerHTML = '';
+        if (state.mode === 'scale') {
+            filterSelect.add(new Option('Full Scale', 'all'));
+            filterSelect.add(new Option('Triads Only (1-3-5)', 'triad'));
+            filterSelect.add(new Option('7th Arpeggios', '7th'));
+            filterSelect.disabled = false;
+        } else {
+            filterSelect.add(new Option('Chord Tones', 'all'));
+            filterSelect.disabled = true; // No point filtering a chord definition
+        }
+        state.filter = filterSelect.value;
+    }
+
+    // --- RENDER LOGIC ---
+
+    function renderBoard() {
+        fretboardEl.innerHTML = '';
+        labelsEl.innerHTML = '';
+
+        fretboardEl.classList.toggle('lefty', state.hand === 'left');
+
+        const currentTuning = TUNINGS[state.tuning];
+        const sourceData = state.mode === 'scale' ? SCALES : CHORDS;
+        let intervals = sourceData[state.dynamicSelection] || [];
+
+        // Apply Filter (Scale mode only)
+        if (state.mode === 'scale') {
+            if (state.filter === 'triad') intervals = intervals.filter(i => [0,3,4,7].includes(i));
+            if (state.filter === '7th') intervals = intervals.filter(i => [0,3,4,7,10,11].includes(i));
+        }
+
+        const [minFret, maxFret] = state.zone.split('-').map(Number);
+        const MAX_FRETS = 18;
+
+        // Render Strings
+        currentTuning.forEach((openNote, strIdx) => {
+            const stringNum = strIdx + 1; // 1 to 6
+            
+            // Label
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'string-name';
+            const noteName = getNoteLabel(openNote);
+            labelDiv.innerText = state.labeling === 'note' ? noteName : (state.hand==='right' ? stringNum : 7-stringNum); 
+            // Correct string numbering visual: Top is string 1 (High E) in array index 0?
+            // Wait, TUNING array is E(4) B(3) ... so index 0 is high E (string 1).
+            // Visual text: Note or Number.
+            labelsEl.appendChild(labelDiv);
+
+            // String Line
+            const strDiv = document.createElement('div');
+            strDiv.className = 'string';
+            strDiv.style.setProperty('--thickness', `${1 + (strIdx * 0.5)}px`);
+
+            // Frets
+            for (let f = 0; f <= MAX_FRETS; f++) {
+                const fretDiv = document.createElement('div');
+                fretDiv.className = 'fret';
+                if (f < minFret || f > maxFret) fretDiv.classList.add('dimmed');
+
+                // Inlays
+                if (strIdx === 2) {
+                     if([3,5,7,9,15,17].includes(f)) addInlay(fretDiv);
+                     if(f === 12) { addInlay(fretDiv, 'double-inlay'); addInlay(fretDiv, 'double-inlay-2'); }
+                }
+
+                // Calculate Note
+                const noteVal = (openNote + f) % 12;
+                const interval = (noteVal - state.root + 12) % 12;
+
+                if (intervals.includes(interval)) {
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = `note visible ${getIntervalClass(interval)}`;
+                    noteDiv.dataset.fret = f;
+                    noteDiv.dataset.string = strIdx;
+
+                    const content = state.display === 'notes' ? getNoteLabel(noteVal) : getIntervalLabel(interval);
+                    noteDiv.innerText = content;
+
+                    noteDiv.addEventListener('mousedown', (e) => {
+                        e.stopPropagation();
+                        triggerNote(f, strIdx, noteDiv);
+                    });
+
+                    fretDiv.appendChild(noteDiv);
+                }
+                strDiv.appendChild(fretDiv);
+            }
+            fretboardEl.appendChild(strDiv);
+        });
+
+        // Number Row
+        renderNumberRow(minFret, maxFret, MAX_FRETS);
+        
+        // Info Text
+        updateInfoBar(intervals);
+        
+        // Reset scroll only on major changes, simpler to just allow user to scroll
+        // viewportWrapper.scrollLeft = 0; 
+    }
+
+    function addInlay(parent, cls = 'inlay') {
+        const d = document.createElement('div');
+        d.className = cls;
+        parent.appendChild(d);
+    }
+
+    function renderNumberRow(min, max, total) {
+        const row = document.createElement('div');
+        row.className = 'number-row';
+        
+        const nut = document.createElement('div');
+        nut.className = 'fret-number nut';
+        nut.innerText = '0';
+        row.appendChild(nut);
+
+        for(let i=1; i<=total; i++) {
+            const d = document.createElement('div');
+            d.className = 'fret-number';
+            d.innerText = i;
+            if ([3,5,7,9,12,15,17].includes(i)) d.classList.add('marker');
+            if (i < min || i > max) d.style.opacity = '0.2';
+            row.appendChild(d);
+        }
+        fretboardEl.appendChild(row);
+    }
+
+    function updateInfoBar(intervals) {
+        const rootName = getNoteLabel(state.root);
+        const name = `${rootName} ${state.dynamicSelection}`;
+        const detail = state.mode === 'scale' && state.filter !== 'all' ? ` (${state.filter}s)` : '';
+        
+        let struct = intervals.map(i => INTERVAL_MAP[i] || 'Ext').join(' - ');
+        
+        theoryOut.innerHTML = `
+            <strong style="font-size:1.1rem; color:white">${name}${detail}</strong><br>
+            <span style="color:#888">${struct}</span>
+        `;
+    }
+
+    // --- HELPERS ---
+    function getNoteLabel(val) {
+        return state.spelling === 'sharp' ? NOTES[val] : FLAT_NOTES[val];
+    }
+
+    function getIntervalLabel(i) {
+        // Special case for Add9 or 9ths if we want to be fancy, but simple map is safer
+        return INTERVAL_MAP[i] || '?';
+    }
+
+    function getIntervalClass(i) {
+        if (i === 0) return 'int-R';
+        if ([3,4].includes(i)) return 'int-3';
+        if ([6,7,8].includes(i)) return 'int-5';
+        if ([10,11].includes(i)) return 'int-7';
+        return 'int-other';
+    }
+
+    // --- AUDIO ---
+    function triggerNote(fret, strIdx, el) {
+        playTone(fret, strIdx);
+        if(el) {
+            el.classList.remove('playing');
+            void el.offsetWidth; // reflow
+            el.classList.add('playing');
+        }
+    }
+
+    function playTone(fret, strIdx) {
+        if (!window.AudioContext && !window.webkitAudioContext) return;
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Base freq for strings 0-5 (High E -> Low E)
+        // High E4 = 329.63
+        const bases = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
+        
+        // Adjust for tuning
+        const std = [4, 11, 7, 2, 9, 4]; // E B G D A E notes
+        const cur = TUNINGS[state.tuning];
+        
+        // Calculate semitone shift from standard
+        const shift = cur[strIdx] - std[strIdx];
+        
+        let freq = bases[strIdx] * Math.pow(2, shift/12);
+        freq = freq * Math.pow(2, fret/12);
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'triangle'; // Softer than sawtooth
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        
+        // Envelope
+        const t = audioCtx.currentTime;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.2, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 1.0);
+    }
+
+    async function playVisibleArpeggio() {
+        if (playingSequence) return;
+        playingSequence = true;
+        const btn = document.getElementById('playArpeggioBtn');
+        btn.disabled = true;
+
+        // Collect visible notes sorted by pitch (low string -> high string, low fret -> high fret)
+        // Actually, guitar pitch is Low String (idx 5) to High String (idx 0)
+        // But let's just scan strings 5 down to 0, frets min to max
+        
+        const [min, max] = state.zone.split('-').map(Number);
+        
+        // Collect all note elements
+        let targets = [];
+        
+        // Iterate strings Low (5) to High (0)
+        for (let s = 5; s >= 0; s--) {
+            // Find notes on this string within zone
+            // We need to query DOM or reconstruct. Simpler to query DOM.
+            // But DOM order is High E first.
+            // Let's grab all .note.visible
+            // Filter by string index 's'
+        }
+        
+        // Easier approach: Get all .note.visible, sort them by string (desc) then fret (asc)
+        const notes = Array.from(document.querySelectorAll('.note.visible'));
+        
+        // Sort: String 5 (Low E) is highest index but lowest pitch base. 
+        // We want 5, then 4...
+        notes.sort((a, b) => {
+            const sA = parseInt(a.dataset.string);
+            const sB = parseInt(b.dataset.string);
+            const fA = parseInt(a.dataset.fret);
+            const fB = parseInt(b.dataset.fret);
+            
+            // Primary sort: String (Descending 5->0)
+            if (sA !== sB) return sB - sA; 
+            // Secondary sort: Fret (Ascending)
+            return fA - fB;
+        });
+        
+        // Limit to prevent long wait
+        const toPlay = notes.slice(0, 16); 
+
+        for (let note of toPlay) {
+            const s = parseInt(note.dataset.string);
+            const f = parseInt(note.dataset.fret);
+            triggerNote(f, s, note);
+            await new Promise(r => setTimeout(r, 150));
+        }
+
+        btn.disabled = false;
+        playingSequence = false;
+    }
+
+    init();
+
+</script>
+</body>
+</html>
